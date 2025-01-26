@@ -142,8 +142,8 @@ resource "aws_iam_policy" "valheim_s3_policy" {
         Effect = "Allow",
         Action = ["s3:PutObject", "s3:PutObjectAcl", "s3:GetObject", "s3:ListBucket"],
         Resource = [
-          "arn:aws:s3:::hiroshi-valheim-servers-data-758724857051",
-          "arn:aws:s3:::hiroshi-valheim-servers-data-758724857051/*"
+          "arn:aws:s3:::${data.aws_s3_bucket.valheim_s3_bucket.bucket}",
+          "arn:aws:s3:::${data.aws_s3_bucket.valheim_s3_bucket.bucket}/*"
         ]
       }
     ]
