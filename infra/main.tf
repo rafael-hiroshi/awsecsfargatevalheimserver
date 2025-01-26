@@ -23,7 +23,7 @@ resource "aws_ecs_cluster" "valheim_cluster" {
 
 resource "aws_cloudwatch_log_group" "ecs_log_group" {
   name              = "/ecs/ValheimServerTask/"
-  retention_in_days = 30
+  retention_in_days = 7
 }
 
 resource "aws_ecs_task_definition" "valheim_task" {
@@ -67,11 +67,11 @@ resource "aws_ecs_task_definition" "valheim_task" {
         },
         {
           name  = "POST_BOOTSTRAP_HOOK"
-          value = "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install awscli && aws s3 sync \"s3://$S3_BUCKET_NAME/$WORLD_NAME/\" \"/home/valheim/.config/unity3d/IronGate/Valheim/worlds_local/\""
+          value = "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install awscli && aws s3 sync \"s3://$S3_BUCKET_NAME/$WORLD_NAME/config/worlds_local/\" \"/home/valheim/.config/unity3d/IronGate/Valheim/worlds_local/\""
         },
         {
           name  = "POST_BACKUP_HOOK"
-          value = "timeout 60 unzip @BACKUP_FILE@ -d /tmp/backup -o && aws s3 sync /tmp/backup/ \"s3://$S3_BUCKET_NAME/$WORLD_NAME/\""
+          value = "timeout 60 bash -c \"mkdir -p /tmp/backup && unzip -o @BACKUP_FILE@ -d /tmp/backup && aws s3 cp /tmp/backup/ s3://$S3_BUCKET_NAME/$WORLD_NAME/ --recursive && rm -rf /tmp/backup\""
         },
         {
           name  = "AWS_REGION"
