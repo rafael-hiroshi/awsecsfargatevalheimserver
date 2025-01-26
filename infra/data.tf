@@ -23,5 +23,5 @@ data "aws_ssm_parameter" "server_password" {
 }
 
 data "aws_ssm_parameter" "world_name" {
-  name = var.world_parameter_name
+  name = var.server_world_parameter_name
 }

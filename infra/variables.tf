@@ -6,6 +6,6 @@ variable "server_password_parameter_name" {
   type = string
 }
 
-variable "world_parameter_name" {
+variable "server_world_parameter_name" {
   type = string
 }
