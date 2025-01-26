@@ -27,11 +27,11 @@ resource "aws_cloudwatch_log_group" "ecs_log_group" {
 }
 
 resource "aws_ecs_task_definition" "valheim_task" {
-  family                   = "ValheimDedicatedServerTask"
-  container_definitions    = jsonencode([
+  family = "ValheimDedicatedServerTask"
+  container_definitions = jsonencode([
     {
       name      = "ValheimServer",
-      image     = "lloesche/valheim-server",
+      image     = "lloesche/valheim-server"
       cpu       = 2048,
       memory    = 4096,
       essential = true,
@@ -62,26 +62,94 @@ resource "aws_ecs_task_definition" "valheim_task" {
       ],
       environment = [
         {
+          name  = "TZ"
+          value = "America/Sao_Paulo"
+        },
+        {
+          name  = "POST_BOOTSTRAP_HOOK"
+          value = "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install awscli && aws s3 sync \"s3://$S3_BUCKET_NAME/$WORLD_NAME/\" \"/home/valheim/.config/unity3d/IronGate/Valheim/worlds_local/\""
+        },
+        {
+          name  = "POST_BACKUP_HOOK"
+          value = "timeout 60 unzip @BACKUP_FILE@ -d /tmp/backup -o && aws s3 sync /tmp/backup/ \"s3://$S3_BUCKET_NAME/$WORLD_NAME/\""
+        },
+        {
+          name  = "AWS_REGION"
+          value = "sa-east-1"
+        },
+        {
+          name  = "S3_BUCKET_NAME"
+          value = data.aws_s3_bucket.valheim_s3_bucket.bucket
+        },
+        {
           name  = "SERVER_NAME"
-          value = "My Valheim Server"
+          value = "ValheimWorld"
         },
         {
           name  = "WORLD_NAME"
-          value = "MyWorld"
+          value = data.aws_ssm_parameter.world_name.value
         },
         {
           name  = "SERVER_PASS"
-          value = "mypass"
-        }
+          value = data.aws_ssm_parameter.server_password.value
+        },
+        {
+          name  = "BACKUPS_CRON"
+          value = "*/15 * * * *"
+        },
+        {
+          name  = "BACKUPS_MAX_COUNT"
+          value = "5"
+        },
       ]
     }
   ])
   requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = "2048"
-  memory                   = "4096"
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  network_mode       = "awsvpc"
+  cpu                = "2048"
+  memory             = "4096"
+  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn      = aws_iam_role.valheim_task_role.arn
 }
+
+resource "aws_iam_role" "valheim_task_role" {
+  name = "ValheimTaskRole"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = { Service = "ecs-tasks.amazonaws.com" },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "valheim_task_s3_policy_attachment" {
+  role       = aws_iam_role.valheim_task_role.name
+  policy_arn = aws_iam_policy.valheim_s3_policy.arn
+}
+
+resource "aws_iam_policy" "valheim_s3_policy" {
+  name        = "ValheimServerS3Policy"
+  description = "Allow ECS task to put objects into S3 bucket for Valheim server data"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = ["s3:PutObject", "s3:PutObjectAcl", "s3:GetObject", "s3:ListBucket"],
+        Resource = [
+          "arn:aws:s3:::hiroshi-valheim-servers-data-758724857051",
+          "arn:aws:s3:::hiroshi-valheim-servers-data-758724857051/*"
+        ]
+      }
+    ]
+  })
+}
+
 
 resource "aws_ecs_service" "valheim_service" {
   name            = "ValheimService"
@@ -90,12 +158,12 @@ resource "aws_ecs_service" "valheim_service" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = data.aws_subnets.default_subnets.ids
+    subnets          = data.aws_subnets.default_subnets.ids
     security_groups = [aws_security_group.valheim_sg.id]
     assign_public_ip = true
   }
 
-  desired_count = 0
+  desired_count = 1
 }
 
 resource "aws_iam_role" "ecs_task_execution_role" {
@@ -105,8 +173,8 @@ resource "aws_iam_role" "ecs_task_execution_role" {
     Version = "2012-10-17",
     Statement = [
       {
-        Action    = "sts:AssumeRole",
-        Effect    = "Allow",
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
         Principal = { Service = "ecs-tasks.amazonaws.com" }
       }
     ]
@@ -115,7 +183,7 @@ resource "aws_iam_role" "ecs_task_execution_role" {
 
 resource "aws_iam_policy_attachment" "ecs_task_execution_policy" {
   name       = "ecs-task-execution-policy-attachment"
-  roles      = [aws_iam_role.ecs_task_execution_role.name]
+  roles = [aws_iam_role.ecs_task_execution_role.name]
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
@@ -125,17 +193,16 @@ resource "aws_security_group" "valheim_sg" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    from_port   = 2456
-    to_port     = 2458
-    protocol    = "udp"
+    from_port = 2456
+    to_port   = 2458
+    protocol  = "udp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-
