@@ -32,8 +32,8 @@ resource "aws_ecs_task_definition" "valheim_task" {
     {
       name      = "ValheimServer",
       image     = "lloesche/valheim-server"
-      cpu       = 2048,
-      memory    = 4096,
+      cpu       = var.task_cpu,
+      memory    = var.task_memory,
       essential = true,
       logConfiguration = {
         logDriver = "awslogs"
@@ -67,11 +67,11 @@ resource "aws_ecs_task_definition" "valheim_task" {
         },
         {
           name  = "POST_BOOTSTRAP_HOOK"
-          value = "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install awscli && aws s3 sync \"s3://$S3_BUCKET_NAME/$WORLD_NAME/config/worlds_local/\" \"/home/valheim/.config/unity3d/IronGate/Valheim/worlds_local/\""
+          value = file("${path.module}/post_bootstrap.sh")
         },
         {
           name  = "POST_BACKUP_HOOK"
-          value = "timeout 60 bash -c \"mkdir -p /tmp/backup && unzip -o @BACKUP_FILE@ -d /tmp/backup && aws s3 cp /tmp/backup/ s3://$S3_BUCKET_NAME/$WORLD_NAME/ --recursive && rm -rf /tmp/backup\""
+          value = file("${path.module}/post_backup.sh")
         },
         {
           name  = "AWS_REGION"
@@ -106,8 +106,8 @@ resource "aws_ecs_task_definition" "valheim_task" {
   ])
   requires_compatibilities = ["FARGATE"]
   network_mode       = "awsvpc"
-  cpu                = "2048"
-  memory             = "4096"
+  cpu                = var.task_cpu
+  memory             = var.task_memory
   execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn      = aws_iam_role.valheim_task_role.arn
 }
