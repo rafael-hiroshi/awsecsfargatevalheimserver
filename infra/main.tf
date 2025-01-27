@@ -12,7 +12,7 @@ terraform {
 
   backend "s3" {
     bucket = "tfstate-758724857051"
-    key    = "dev/resources/valheimcluster.tfstate"
+    key    = "awsecsfargatevalheimserver.tfstate"
     region = "sa-east-1"
   }
 }
