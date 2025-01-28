@@ -11,11 +11,15 @@ variable "server_world_parameter_name" {
 }
 
 variable "task_cpu" {
-  type = number
+  type    = number
   default = 1024
 }
 
 variable "task_memory" {
-  type = number
+  type    = number
   default = 4096
+}
+
+variable "server_name" {
+  type = string
 }

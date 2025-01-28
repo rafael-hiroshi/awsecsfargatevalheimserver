@@ -66,12 +66,12 @@ resource "aws_ecs_task_definition" "valheim_task" {
           value = "America/Sao_Paulo"
         },
         {
-          name  = "POST_BOOTSTRAP_HOOK"
-          value = file("${path.module}/post_bootstrap.sh")
+          name = "POST_BOOTSTRAP_HOOK"
+          value = file("${path.module}/hooks/post_bootstrap.sh")
         },
         {
-          name  = "POST_BACKUP_HOOK"
-          value = file("${path.module}/post_backup.sh")
+          name = "POST_BACKUP_HOOK"
+          value = file("${path.module}/hooks/post_backup.sh")
         },
         {
           name  = "AWS_REGION"
@@ -83,7 +83,7 @@ resource "aws_ecs_task_definition" "valheim_task" {
         },
         {
           name  = "SERVER_NAME"
-          value = "ValheimWorld"
+          value = var.server_name
         },
         {
           name  = "WORLD_NAME"
@@ -152,10 +152,11 @@ resource "aws_iam_policy" "valheim_s3_policy" {
 
 
 resource "aws_ecs_service" "valheim_service" {
-  name            = "ValheimService"
-  cluster         = aws_ecs_cluster.valheim_cluster.id
-  task_definition = aws_ecs_task_definition.valheim_task.arn
-  launch_type     = "FARGATE"
+  name                   = "ValheimService"
+  cluster                = aws_ecs_cluster.valheim_cluster.id
+  task_definition        = aws_ecs_task_definition.valheim_task.arn
+  launch_type            = "FARGATE"
+  enable_execute_command = true
 
   network_configuration {
     subnets          = data.aws_subnets.default_subnets.ids
