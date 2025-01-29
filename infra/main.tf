@@ -22,7 +22,7 @@ resource "aws_ecs_cluster" "valheim_cluster" {
 }
 
 resource "aws_cloudwatch_log_group" "ecs_log_group" {
-  name              = "/ecs/ValheimServerTask/"
+  name              = "/aws/ecs/ValheimServerTask/"
   retention_in_days = 7
 }
 
@@ -127,24 +127,38 @@ resource "aws_iam_role" "valheim_task_role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "valheim_task_s3_policy_attachment" {
+resource "aws_iam_role_policy_attachment" "valheim_task_role_policy_attachment" {
   role       = aws_iam_role.valheim_task_role.name
-  policy_arn = aws_iam_policy.valheim_s3_policy.arn
+  policy_arn = aws_iam_policy.valheim_task_policy.arn
 }
 
-resource "aws_iam_policy" "valheim_s3_policy" {
-  name        = "ValheimServerS3Policy"
-  description = "Allow ECS task to put objects into S3 bucket for Valheim server data"
+resource "aws_iam_policy" "valheim_task_policy" {
+  name = "ValheimServerTaskPolicy"
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
         Effect = "Allow",
-        Action = ["s3:PutObject", "s3:PutObjectAcl", "s3:GetObject", "s3:ListBucket"],
+        Action = [
+          "s3:PutObject",
+          "s3:PutObjectAcl",
+          "s3:GetObject",
+          "s3:ListBucket"
+        ],
         Resource = [
           "arn:aws:s3:::${data.aws_s3_bucket.valheim_s3_bucket.bucket}",
           "arn:aws:s3:::${data.aws_s3_bucket.valheim_s3_bucket.bucket}/*"
         ]
+      },
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ],
+        "Resource" : "*"
       }
     ]
   })
